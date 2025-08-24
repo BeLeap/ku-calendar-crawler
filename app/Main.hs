@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import Network.HTTP.Simple
-import Text.HTML.DOM
-import Text.XML.Cursor
+import Network.HTTP.Simple (parseRequest, setRequestMethod, setRequestQueryString, setRequestHeaders, httpSink)
+import Text.HTML.DOM (sinkDoc)
+import Text.XML.Cursor (element, fromDocument, ($//), (&//))
 
 main :: IO ()
 main = do
