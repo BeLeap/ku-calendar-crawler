@@ -6,6 +6,7 @@ import Network.HTTP.Simple (parseRequest, setRequestMethod, setRequestQueryStrin
 import Text.HTML.DOM (sinkDoc)
 import Text.XML.Cursor
 import Data.Text (strip)
+import Data.Maybe (listToMaybe)
 
 main :: IO ()
 main = do
@@ -21,9 +22,9 @@ main = do
 
   let rows' = cursor $// element "table" &// element "tr"
   let rows = map (\row -> (
-          row $// element "th" &// element "span" &/ content,
-          map strip $ row $// attributeIs "class" "des dateInfo" &/ content,
-          row $// attributeIs "class" "des" &// element "div" &/ content
+          listToMaybe $ map strip $ row $// element "th" &// element "span" &/ content,
+          strip $ head $ row $// attributeIs "class" "des dateInfo" &/ content,
+          strip $ head $ row $// attributeIs "class" "des" &// element "div" &/ content
         )) rows'
 
   pPrint rows
