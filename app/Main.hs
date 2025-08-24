@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
+import Text.Pretty.Simple (pPrint)
 import Network.HTTP.Simple (parseRequest, setRequestMethod, setRequestQueryString, setRequestHeaders, httpSink)
 import Text.HTML.DOM (sinkDoc)
 import Text.XML.Cursor (element, fromDocument, ($//), (&//))
@@ -20,4 +21,4 @@ main = do
   let rows = cursor $// element "table" &// element "tr"
   let content = map (\row -> (row $// element "th", row $// element "td")) rows
 
-  print content
+  pPrint content
