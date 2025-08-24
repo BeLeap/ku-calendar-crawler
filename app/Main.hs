@@ -3,6 +3,7 @@ module Main where
 
 import Network.HTTP.Simple
 import Text.HTML.DOM
+import Text.XML.Cursor
 
 main :: IO ()
 main = do
@@ -14,4 +15,6 @@ main = do
         $ request'
   document <- httpSink request $ const sinkDoc
 
-  putStrLn ""
+  let cursor = fromDocument document
+
+  print cursor

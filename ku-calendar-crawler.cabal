@@ -72,6 +72,7 @@ executable example
         http-conduit,
         bytestring,
         html-conduit,
+        xml-conduit,
 
     -- Directories containing source files.
     hs-source-dirs:   app
