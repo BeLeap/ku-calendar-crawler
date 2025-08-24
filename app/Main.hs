@@ -8,6 +8,11 @@ import Text.XML.Cursor
 import Data.Text (strip)
 import Data.Maybe (listToMaybe, fromMaybe)
 import Data.List (mapAccumL)
+import Data.Char (isDigit)
+import qualified Data.Text as T
+
+data DataRange
+  = Single Int | Range Int Int
 
 main :: IO ()
 main = do
@@ -28,10 +33,32 @@ main = do
           strip $ head $ row $// attributeIs "class" "des" &// element "div" &/ content
         )) rows'
 
-  let (_, withMonth)= mapAccumL step "" rows
+  let (_, withMonth) = mapAccumL step "" rows
         where
           step acc (mMonth, date, title) = let
               newMonth = fromMaybe acc mMonth
             in (newMonth, (newMonth, date, title))
 
-  pPrint withMonth
+  let parsed = map (\(month, date, title) -> (month, parseDate $ T.unpack date, title)) withMonth
+        where
+          readNum xs =
+            let
+              (ds, rest) = span isDigit xs
+            in (read ds, rest)
+          skipWeekday xs =
+            case dropWhile (/= ')') xs of
+              [] -> []
+              (_:ys) -> ys
+          parseDate input =
+            let
+              (d1, _) = readNum input
+              rest2 = skipWeekday input
+            in case rest2 of
+              ('~':more) ->
+                let
+                  (d2, _) = readNum more
+                  _ = skipWeekday more
+                in Range d1 d2
+              _ -> Single d1
+
+  putStrLn ""
