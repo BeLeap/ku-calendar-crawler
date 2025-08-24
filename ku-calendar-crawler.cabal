@@ -70,8 +70,8 @@ executable example
     build-depends:
         base ^>=4.19.2.0,
         pretty-simple,
-        http-conduit,
         bytestring,
+        http-conduit,
         html-conduit,
         xml-conduit,
 
