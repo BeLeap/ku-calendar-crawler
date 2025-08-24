@@ -1,8 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import Network.HTTP.Simple
-import Text.HTML.DOM
+import Text.Pretty.Simple (pPrint)
+import Network.HTTP.Simple (parseRequest, setRequestMethod, setRequestQueryString, setRequestHeaders, httpSink)
+import Text.HTML.DOM (sinkDoc)
 import Text.XML.Cursor
 
 main :: IO ()
@@ -17,4 +18,11 @@ main = do
 
   let cursor = fromDocument document
 
-  print cursor
+  let rows = cursor $// element "table" &// element "tr"
+  let rawDat = map (\row -> (
+          row $// element "th" &// element "span" &/ content,
+          row $// attributeIs "class" "des dateInfo" &/ content,
+          row $// attributeIs "class" "des" &// element "div" &/ content
+        )) rows
+
+  pPrint rawDat
