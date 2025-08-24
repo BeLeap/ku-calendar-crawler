@@ -17,4 +17,7 @@ main = do
 
   let cursor = fromDocument document
 
-  print cursor
+  let rows = cursor $// element "table" &// element "tr"
+  let content = map (\row -> (row $// element "th", row $// element "td")) rows
+
+  print content
