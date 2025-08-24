@@ -6,7 +6,8 @@ import Network.HTTP.Simple (parseRequest, setRequestMethod, setRequestQueryStrin
 import Text.HTML.DOM (sinkDoc)
 import Text.XML.Cursor
 import Data.Text (strip)
-import Data.Maybe (listToMaybe)
+import Data.Maybe (listToMaybe, fromMaybe)
+import Data.List (mapAccumL)
 
 main :: IO ()
 main = do
@@ -27,4 +28,10 @@ main = do
           strip $ head $ row $// attributeIs "class" "des" &// element "div" &/ content
         )) rows'
 
-  pPrint rows
+  let (_, withMonth)= mapAccumL step "" rows
+        where
+          step acc (mMonth, date, title) = let
+              newMonth = fromMaybe acc mMonth
+            in (newMonth, (newMonth, date, title))
+
+  pPrint withMonth
