@@ -5,6 +5,7 @@ import Text.Pretty.Simple (pPrint)
 import Network.HTTP.Simple (parseRequest, setRequestMethod, setRequestQueryString, setRequestHeaders, httpSink)
 import Text.HTML.DOM (sinkDoc)
 import Text.XML.Cursor
+import Data.Text (strip)
 
 main :: IO ()
 main = do
@@ -18,11 +19,11 @@ main = do
 
   let cursor = fromDocument document
 
-  let rows = cursor $// element "table" &// element "tr"
-  let rawDat = map (\row -> (
+  let rows' = cursor $// element "table" &// element "tr"
+  let rows = map (\row -> (
           row $// element "th" &// element "span" &/ content,
-          row $// attributeIs "class" "des dateInfo" &/ content,
+          map strip $ row $// attributeIs "class" "des dateInfo" &/ content,
           row $// attributeIs "class" "des" &// element "div" &/ content
-        )) rows
+        )) rows'
 
-  pPrint rawDat
+  pPrint rows
