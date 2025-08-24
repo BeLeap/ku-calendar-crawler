@@ -70,7 +70,8 @@ executable example
     build-depends:
         base ^>=4.19.2.0,
         http-conduit,
-        bytestring
+        bytestring,
+        html-conduit,
 
     -- Directories containing source files.
     hs-source-dirs:   app
