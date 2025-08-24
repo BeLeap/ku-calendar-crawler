@@ -2,9 +2,13 @@
   pkgs ? import <nixpkgs> { },
 }:
 pkgs.mkShell {
-  nativeBuildInputs = with pkgs; [
+  packages = with pkgs; [
     cabal-install
     ghc
     haskell-language-server
+  ];
+
+  nativeBuildInputs = with pkgs; [
+    zlib
   ];
 }
