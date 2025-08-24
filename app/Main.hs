@@ -2,6 +2,8 @@
 module Main where
 
 import Network.HTTP.Simple
+import Text.HTML.DOM
+import Text.XML.Cursor
 
 main :: IO ()
 main = do
@@ -11,6 +13,8 @@ main = do
         $ setRequestQueryString [("cYear", Just "2025"), ("hakGi", Just "2"), ("srCategoryId1", Just "1613")]
         $ setRequestHeaders [("User-Agent", "curl/8.14.1")]
         $ request'
-  response <- httpLBS request
-  putStrLn $ "ResCode: " ++ show (getResponseStatusCode response)
-  putStrLn $ "Response Body: " ++ show (getResponseBody response)
+  document <- httpSink request $ const sinkDoc
+
+  let cursor = fromDocument document
+
+  print cursor
