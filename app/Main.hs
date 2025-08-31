@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import Text.Pretty.Simple (pPrint)
 import Network.HTTP.Simple (parseRequest, setRequestMethod, setRequestQueryString, setRequestHeaders, httpSink)
 import Text.HTML.DOM (sinkDoc)
 import Text.XML.Cursor
@@ -10,6 +9,17 @@ import Data.Maybe (listToMaybe, fromMaybe)
 import Data.List (mapAccumL)
 import Data.Char (isDigit)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
+import Text.ICalendar
+import Data.Default (def)
+import Data.Time.Clock
+import Data.Time (fromGregorian)
+import Data.Version
+import qualified Data.Map as M
+import qualified Data.Set as S
+import qualified Data.ByteString.Lazy as BL
+import Text.Pretty.Simple
+import Data.Text.Read
 
 data DataRange
   = Single Int | Range Int Int
@@ -39,7 +49,9 @@ main = do
               newMonth = fromMaybe acc mMonth
             in (newMonth, (newMonth, date, title))
 
-  let parsed = map (\(month, date, title) -> (month, parseDate $ T.unpack date, title)) withMonth
+  pPrint withMonth
+
+  let parsed = map (\(month, date, title) -> (parseMonth month :: Int, parseDate $ T.unpack date, title)) withMonth
         where
           readNum xs =
             let
@@ -60,5 +72,69 @@ main = do
                   _ = skipWeekday more
                 in Range d1 d2
               _ -> Single d1
+          parseMonth input = read (T.unpack (T.dropEnd 1 input))
 
-  putStrLn ""
+  now <- getCurrentTime
+
+  let vEvents = map (
+                      \(month, date, title) ->
+                        let
+                          (start, end) =
+                            case date of
+                              Single start -> (Just DTStartDate { dtStartDateValue = Date (fromGregorian 2025 month start), dtStartOther = def }, Nothing)
+                              Range start end -> (Just (DTStartDate (Date (fromGregorian 2025 month start)) def), Just (DTEndDate (Date (fromGregorian 2025 month end)) def))
+                        in ((TL.fromStrict title, Nothing), VEvent {
+                          veDTStamp = DTStamp now def,
+                          veUID = UID (TL.fromStrict title) def,
+                          veClass = Class Public def,
+                          veDTStart = start,
+                          veCreated = Nothing,
+                          veDescription = Nothing,
+                          veGeo = Nothing,
+                          veLastMod = Nothing,
+                          veLocation = Nothing,
+                          veOrganizer = Nothing,
+                          vePriority = def,
+                          veSeq = def,
+                          veStatus = Nothing,
+                          veSummary = Just (Summary (TL.pack $ T.unpack title ++ "") Nothing Nothing def),
+                          veTransp = def,
+                          veUrl = Nothing,
+                          veRecurId = Nothing,
+                          veRRule = S.empty,
+                          veDTEndDuration = fmap Left end,
+                          veAttach = S.empty,
+                          veAttendee = S.empty,
+                          veCategories = S.empty,
+                          veComment = S.empty,
+                          veContact = S.empty,
+                          veExDate = S.empty,
+                          veRStatus = S.empty,
+                          veRelated = S.empty,
+                          veResources = S.empty,
+                          veRDate = S.empty,
+                          veAlarms = S.empty,
+                          veOther = S.empty
+                        })
+                    ) parsed
+
+  let vCal = VCalendar {
+    vcProdId = ProdId (TL.pack "-//BeLeap//ku-calendar-crawler//EN") def,
+    vcVersion = MinMaxICalVersion
+    (makeVersion [2,0])
+    (makeVersion [2,0])
+    def,
+    vcScale = Scale "Gregorian" def,
+    vcMethod = Nothing,
+    vcOther = S.empty,
+    vcTimeZones = M.empty,
+    vcEvents = M.fromList vEvents,
+    vcTodos = M.empty,
+    vcJournals = M.empty,
+    vcFreeBusys = M.empty,
+    vcOtherComps = S.empty
+  }
+
+  let icsBytes = printICalendar def vCal
+
+  BL.writeFile "result.ics" icsBytes

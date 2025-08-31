@@ -75,6 +75,10 @@ executable example
         http-conduit,
         html-conduit,
         xml-conduit,
+        iCalendar,
+        data-default,
+        time,
+        containers,
 
     -- Directories containing source files.
     hs-source-dirs:   app
