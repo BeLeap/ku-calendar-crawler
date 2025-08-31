@@ -23,7 +23,7 @@ data DataRange
   = Single Int | Range Int Int
 instance Show DataRange where
   show (Single d) = "Single-" ++ show d
-  show (Range s e) = "Double-" ++ show s ++ "|" ++ show e
+  show (Range s e) = "Double-" ++ show s ++ "-" ++ show e
 
 main :: IO ()
 main = do
