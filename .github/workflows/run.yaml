@@ -17,7 +17,6 @@ jobs:
       - run: |
           set -xeou pipefail
 
-          mkdir _site
           cd _site
           nix run
       - uses: actions/upload-pages-artifact@v4
