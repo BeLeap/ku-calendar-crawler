@@ -69,7 +69,6 @@ executable example
     -- Other library packages from which modules are imported.
     build-depends:
         base ^>=4.19.2.0,
-        pretty-simple,
         text,
         bytestring,
         http-conduit,
