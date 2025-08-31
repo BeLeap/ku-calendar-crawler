@@ -30,5 +30,3 @@ jobs:
     steps:
       - uses: actions/upload-pages-artifact@v4
         id: deployment
-        with:
-          path: result.ics
