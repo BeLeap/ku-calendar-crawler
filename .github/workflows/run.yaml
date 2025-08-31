@@ -13,7 +13,7 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - run: |
           mkdir _site
-          mv _site
+          cd _site
           nix run
       - uses: actions/upload-pages-artifact@v4
   deploy:
