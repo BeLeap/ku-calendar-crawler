@@ -21,6 +21,9 @@ import qualified Data.ByteString.Lazy as BL
 
 data DataRange
   = Single Int | Range Int Int
+instance Show DataRange where
+  show (Single d) = "Single-" ++ show d
+  show (Range s e) = "Double-" ++ show s ++ "|" ++ show e
 
 main :: IO ()
 main = do
@@ -81,7 +84,7 @@ main = do
                               Range s e -> (Just (DTStartDate (Date (fromGregorian 2025 month s)) def), Just (DTEndDate (Date (fromGregorian 2025 month e)) def))
                         in ((TL.fromStrict title, Nothing), VEvent {
                           veDTStamp = DTStamp now def,
-                          veUID = UID (TL.fromStrict title) def,
+                          veUID = UID (TL.pack $ T.unpack title ++ "|" ++ show 2025 ++ "|" ++ show month  ++ "|" ++ show date ++ "|ku-calendar-crawler@beleap.dev") def,
                           veClass = Class Public def,
                           veDTStart = start,
                           veCreated = Nothing,
