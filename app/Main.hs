@@ -18,7 +18,6 @@ import Data.Version
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.ByteString.Lazy as BL
-import Text.Pretty.Simple
 
 data DataRange
   = Single Int | Range Int Int
