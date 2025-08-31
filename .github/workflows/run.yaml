@@ -12,6 +12,8 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - run: |
+          set -xeou pipefail
+
           mkdir _site
           cd _site
           nix run
