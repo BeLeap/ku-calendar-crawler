@@ -19,7 +19,6 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.ByteString.Lazy as BL
 import Text.Pretty.Simple
-import Data.Text.Read
 
 data DataRange
   = Single Int | Range Int Int
@@ -81,8 +80,8 @@ main = do
                         let
                           (start, end) =
                             case date of
-                              Single start -> (Just DTStartDate { dtStartDateValue = Date (fromGregorian 2025 month start), dtStartOther = def }, Nothing)
-                              Range start end -> (Just (DTStartDate (Date (fromGregorian 2025 month start)) def), Just (DTEndDate (Date (fromGregorian 2025 month end)) def))
+                              Single s -> (Just DTStartDate { dtStartDateValue = Date (fromGregorian 2025 month s), dtStartOther = def }, Nothing)
+                              Range s e -> (Just (DTStartDate (Date (fromGregorian 2025 month s)) def), Just (DTEndDate (Date (fromGregorian 2025 month e)) def))
                         in ((TL.fromStrict title, Nothing), VEvent {
                           veDTStamp = DTStamp now def,
                           veUID = UID (TL.fromStrict title) def,
@@ -97,7 +96,7 @@ main = do
                           vePriority = def,
                           veSeq = def,
                           veStatus = Nothing,
-                          veSummary = Just (Summary (TL.pack $ T.unpack title ++ "") Nothing Nothing def),
+                          veSummary = Just (Summary (TL.pack $ T.unpack title ++ "|ku-calendar-crawler@beleap.dev") Nothing Nothing def),
                           veTransp = def,
                           veUrl = Nothing,
                           veRecurId = Nothing,
