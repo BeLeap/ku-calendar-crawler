@@ -48,8 +48,6 @@ main = do
               newMonth = fromMaybe acc mMonth
             in (newMonth, (newMonth, date, title))
 
-  pPrint withMonth
-
   let parsed = map (\(month, date, title) -> (parseMonth month :: Int, parseDate $ T.unpack date, title)) withMonth
         where
           readNum xs =
