@@ -18,6 +18,8 @@ import Data.Version
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.ByteString.Lazy as BL
+import qualified Text.XML
+import Data.Text.Encoding (encodeUtf8)
 
 data DataRange
   = Single Int | Range Int Int
@@ -25,32 +27,36 @@ instance Show DataRange where
   show (Single d) = "Single-" ++ show d
   show (Range s e) = "Double-" ++ show s ++ "-" ++ show e
 
-main :: IO ()
-main = do
+crawl :: String -> String -> IO Text.XML.Document
+crawl year term = do
   request' <- parseRequest "https://registrar.korea.ac.kr/eduinfo/affairs/schedule.do"
   let request
         = setRequestMethod "GET"
-        $ setRequestQueryString [("cYear", Just "2025"), ("hakGi", Just "2"), ("srCategoryId1", Just "1613")]
+        $ setRequestQueryString [("cYear", Just $ encodeUtf8 $ T.pack year), ("hakGi", Just $ encodeUtf8 $ T.pack term), ("srCategoryId1", Just "1613")]
         $ setRequestHeaders [("User-Agent", "curl/8.14.1")]
         $ request'
-  document <- httpSink request $ const sinkDoc
+  httpSink request $ const sinkDoc
 
-  let cursor = fromDocument document
+parseDocument :: Text.XML.Document -> [(Int, DataRange, T.Text)]
+parseDocument document =
+  let
+    cursor = fromDocument document
 
-  let rows' = cursor $// element "table" &// element "tr"
-  let rows = map (\row -> (
-          listToMaybe $ map strip $ row $// element "th" &// element "span" &/ content,
-          strip $ head $ row $// attributeIs "class" "des dateInfo" &/ content,
-          strip $ head $ row $// attributeIs "class" "des" &// element "div" &/ content
-        )) rows'
+    rows' = cursor $// element "table" &// element "tr"
+    rows = map (\row -> (
+            listToMaybe $ map strip $ row $// element "th" &// element "span" &/ content,
+            strip $ head $ row $// attributeIs "class" "des dateInfo" &/ content,
+            strip $ head $ row $// attributeIs "class" "des" &// element "div" &/ content
+          )) rows'
 
-  let (_, withMonth) = mapAccumL step "" rows
-        where
-          step acc (mMonth, date, title) = let
-              newMonth = fromMaybe acc mMonth
-            in (newMonth, (newMonth, date, title))
+    (_, withMonth) = mapAccumL step "" rows
+          where
+            step acc (mMonth, date, title) = let
+                newMonth = fromMaybe acc mMonth
+              in (newMonth, (newMonth, date, title))
+  in
 
-  let parsed = map (\(month, date, title) -> (parseMonth month :: Int, parseDate $ T.unpack date, title)) withMonth
+  map (\(month, date, title) -> (parseMonth month :: Int, parseDate $ T.unpack date, title)) withMonth
         where
           readNum xs =
             let
@@ -73,49 +79,57 @@ main = do
               _ -> Single d1
           parseMonth input = read (T.unpack (T.dropEnd 1 input))
 
-  now <- getCurrentTime
+generateIcalEvents :: UTCTime -> Integer -> [(Int, DataRange, T.Text)] -> [((TL.LazyText, Maybe (Either Date DateTime)), VEvent)]
+generateIcalEvents now year = map (
+        \(month, date, title) ->
+          let
+            (start, end) =
+              case date of
+                Single s -> (Just DTStartDate { dtStartDateValue = Date (fromGregorian year month s), dtStartOther = def }, Nothing)
+                Range s e -> (Just (DTStartDate (Date (fromGregorian year month s)) def), Just (DTEndDate (Date (fromGregorian 2025 month e)) def))
+          in ((TL.fromStrict title, Nothing), VEvent {
+            veDTStamp = DTStamp now def,
+            veUID = UID (TL.pack $ T.unpack title ++ "|" ++ show year ++ "|" ++ show month  ++ "|" ++ show date ++ "|ku-calendar-crawler@beleap.dev") def,
+            veClass = Class Public def,
+            veDTStart = start,
+            veCreated = Nothing,
+            veDescription = Nothing,
+            veGeo = Nothing,
+            veLastMod = Nothing,
+            veLocation = Nothing,
+            veOrganizer = Nothing,
+            vePriority = def,
+            veSeq = def,
+            veStatus = Nothing,
+            veSummary = Just (Summary (TL.fromStrict title) Nothing Nothing def),
+            veTransp = def,
+            veUrl = Nothing,
+            veRecurId = Nothing,
+            veRRule = S.empty,
+            veDTEndDuration = fmap Left end,
+            veAttach = S.empty,
+            veAttendee = S.empty,
+            veCategories = S.empty,
+            veComment = S.empty,
+            veContact = S.empty,
+            veExDate = S.empty,
+            veRStatus = S.empty,
+            veRelated = S.empty,
+            veResources = S.empty,
+            veRDate = S.empty,
+            veAlarms = S.empty,
+            veOther = S.empty
+          })
+      )
 
-  let vEvents = map (
-                      \(month, date, title) ->
-                        let
-                          (start, end) =
-                            case date of
-                              Single s -> (Just DTStartDate { dtStartDateValue = Date (fromGregorian 2025 month s), dtStartOther = def }, Nothing)
-                              Range s e -> (Just (DTStartDate (Date (fromGregorian 2025 month s)) def), Just (DTEndDate (Date (fromGregorian 2025 month e)) def))
-                        in ((TL.fromStrict title, Nothing), VEvent {
-                          veDTStamp = DTStamp now def,
-                          veUID = UID (TL.pack $ T.unpack title ++ "|" ++ show 2025 ++ "|" ++ show month  ++ "|" ++ show date ++ "|ku-calendar-crawler@beleap.dev") def,
-                          veClass = Class Public def,
-                          veDTStart = start,
-                          veCreated = Nothing,
-                          veDescription = Nothing,
-                          veGeo = Nothing,
-                          veLastMod = Nothing,
-                          veLocation = Nothing,
-                          veOrganizer = Nothing,
-                          vePriority = def,
-                          veSeq = def,
-                          veStatus = Nothing,
-                          veSummary = Just (Summary (TL.fromStrict title) Nothing Nothing def),
-                          veTransp = def,
-                          veUrl = Nothing,
-                          veRecurId = Nothing,
-                          veRRule = S.empty,
-                          veDTEndDuration = fmap Left end,
-                          veAttach = S.empty,
-                          veAttendee = S.empty,
-                          veCategories = S.empty,
-                          veComment = S.empty,
-                          veContact = S.empty,
-                          veExDate = S.empty,
-                          veRStatus = S.empty,
-                          veRelated = S.empty,
-                          veResources = S.empty,
-                          veRDate = S.empty,
-                          veAlarms = S.empty,
-                          veOther = S.empty
-                        })
-                    ) parsed
+main :: IO ()
+main = do
+  let targets = [("2025", "1"), ("2025", "2")]
+  documents <- mapM (uncurry crawl) targets
+  let calInfos = map parseDocument documents
+  let infos = zip targets calInfos
+  now <- getCurrentTime
+  let events = concatMap (\((year, _), info) -> generateIcalEvents now (read year) info) infos
 
   let vCal = VCalendar {
     vcProdId = ProdId (TL.pack "-//BeLeap//ku-calendar-crawler//EN") def,
@@ -127,7 +141,7 @@ main = do
     vcMethod = Nothing,
     vcOther = S.empty,
     vcTimeZones = M.empty,
-    vcEvents = M.fromList vEvents,
+    vcEvents = M.fromList events,
     vcTodos = M.empty,
     vcJournals = M.empty,
     vcFreeBusys = M.empty,
