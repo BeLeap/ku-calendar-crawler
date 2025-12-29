@@ -127,7 +127,7 @@ main = do
   let targets = [("2025", "1", "1613"), ("2025", "2", "1613"), ("2026", "1", "1668"), ("2026", "2", "1668")]
   documents <- mapM crawl targets
   let calInfos = map parseDocument documents
-  let infos = zip targets calInfos
+  let infos = zip (map (\(y, h, _) -> (y, h)) targets) calInfos
   now <- getCurrentTime
   let events = concatMap (\((year, _), info) -> generateIcalEvents now (read year) info) infos
 
