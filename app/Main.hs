@@ -125,7 +125,7 @@ generateIcalEvents now year = map (
 main :: IO ()
 main = do
   let targets = [("2025", "1", "1613"), ("2025", "2", "1613"), ("2026", "1", "1668"), ("2026", "2", "1668")]
-  documents <- mapM (uncurry crawl) targets
+  documents <- mapM (uncurry3 crawl) targets
   let calInfos = map parseDocument documents
   let infos = zip targets calInfos
   now <- getCurrentTime
