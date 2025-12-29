@@ -32,7 +32,7 @@ crawl year term category = do
   request' <- parseRequest "https://registrar.korea.ac.kr/eduinfo/affairs/schedule.do"
   let request
         = setRequestMethod "GET"
-        $ setRequestQueryString [("cYear", Just $ encodeUtf8 $ T.pack year), ("hakGi", Just $ encodeUtf8 $ T.pack term), ("srCategoryId1", Just category)]
+        $ setRequestQueryString [("cYear", Just $ encodeUtf8 $ T.pack year), ("hakGi", Just $ encodeUtf8 $ T.pack term), ("srCategoryId1", Just $ encodeUtf8 $ T.pack category)]
         $ setRequestHeaders [("User-Agent", "curl/8.14.1")]
         $ request'
   httpSink request $ const sinkDoc
