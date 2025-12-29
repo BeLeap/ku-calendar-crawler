@@ -124,7 +124,7 @@ generateIcalEvents now year = map (
 
 main :: IO ()
 main = do
-  let targets = [("2025", "1"), ("2025", "2")]
+  let targets = [("2025", "1"), ("2025", "2"), ("2026", "1"), ("2026", "2")]
   documents <- mapM (uncurry crawl) targets
   let calInfos = map parseDocument documents
   let infos = zip targets calInfos
