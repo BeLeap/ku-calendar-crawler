@@ -28,11 +28,11 @@ instance Show DataRange where
   show (Range s e) = "Double-" ++ show s ++ "-" ++ show e
 
 crawl :: String -> String -> IO Text.XML.Document
-crawl year term = do
+crawl year term category = do
   request' <- parseRequest "https://registrar.korea.ac.kr/eduinfo/affairs/schedule.do"
   let request
         = setRequestMethod "GET"
-        $ setRequestQueryString [("cYear", Just $ encodeUtf8 $ T.pack year), ("hakGi", Just $ encodeUtf8 $ T.pack term), ("srCategoryId1", Just "1613")]
+        $ setRequestQueryString [("cYear", Just $ encodeUtf8 $ T.pack year), ("hakGi", Just $ encodeUtf8 $ T.pack term), ("srCategoryId1", Just category)]
         $ setRequestHeaders [("User-Agent", "curl/8.14.1")]
         $ request'
   httpSink request $ const sinkDoc
@@ -124,7 +124,7 @@ generateIcalEvents now year = map (
 
 main :: IO ()
 main = do
-  let targets = [("2025", "1"), ("2025", "2"), ("2026", "1"), ("2026", "2")]
+  let targets = [("2025", "1", "1613"), ("2025", "2", "1613"), ("2026", "1", "1668"), ("2026", "2", "1668")]
   documents <- mapM (uncurry crawl) targets
   let calInfos = map parseDocument documents
   let infos = zip targets calInfos
