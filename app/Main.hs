@@ -27,8 +27,8 @@ instance Show DataRange where
   show (Single d) = "Single-" ++ show d
   show (Range s e) = "Double-" ++ show s ++ "-" ++ show e
 
-crawl :: String -> String -> String -> IO Text.XML.Document
-crawl year term category = do
+crawl :: (String, String, String) -> IO Text.XML.Document
+crawl (year, term, category) = do
   request' <- parseRequest "https://registrar.korea.ac.kr/eduinfo/affairs/schedule.do"
   let request
         = setRequestMethod "GET"
@@ -125,7 +125,7 @@ generateIcalEvents now year = map (
 main :: IO ()
 main = do
   let targets = [("2025", "1", "1613"), ("2025", "2", "1613"), ("2026", "1", "1668"), ("2026", "2", "1668")]
-  documents <- mapM (uncurry3 crawl) targets
+  documents <- mapM crawl targets
   let calInfos = map parseDocument documents
   let infos = zip targets calInfos
   now <- getCurrentTime
