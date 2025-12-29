@@ -27,7 +27,7 @@ instance Show DataRange where
   show (Single d) = "Single-" ++ show d
   show (Range s e) = "Double-" ++ show s ++ "-" ++ show e
 
-crawl :: String -> String -> IO Text.XML.Document
+crawl :: String -> String -> String -> IO Text.XML.Document
 crawl year term category = do
   request' <- parseRequest "https://registrar.korea.ac.kr/eduinfo/affairs/schedule.do"
   let request
