@@ -2,10 +2,11 @@
 module Main where
 
 import Network.HTTP.Simple (parseRequest, setRequestMethod, setRequestQueryString, setRequestHeaders, httpSink)
+import Network.HTTP.Client (Request)
 import Text.HTML.DOM (sinkDoc)
 import Text.XML.Cursor
 import Data.Text (strip)
-import Data.Maybe (listToMaybe, fromMaybe)
+import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
 import Data.List (mapAccumL)
 import Data.Char (isDigit)
 import qualified Data.Text as T
@@ -27,15 +28,57 @@ instance Show DataRange where
   show (Single d) = "Single-" ++ show d
   show (Range s e) = "Double-" ++ show s ++ "-" ++ show e
 
+buildRequest :: String -> String -> IO Request
+buildRequest year term = do
+  request' <- parseRequest "https://registrar.korea.ac.kr/eduinfo/affairs/schedule.do"
+  pure
+    $ setRequestMethod "GET"
+    $ setRequestQueryString
+      [ ("cYear", Just $ encodeUtf8 $ T.pack year)
+      , ("hakGi", Just $ encodeUtf8 $ T.pack term)
+      , ("srCategoryId1", Just "1613")
+      ]
+    $ setRequestHeaders [("User-Agent", "curl/8.14.1")]
+    $ request'
+
 crawl :: String -> String -> IO Text.XML.Document
 crawl year term = do
-  request' <- parseRequest "https://registrar.korea.ac.kr/eduinfo/affairs/schedule.do"
-  let request
-        = setRequestMethod "GET"
-        $ setRequestQueryString [("cYear", Just $ encodeUtf8 $ T.pack year), ("hakGi", Just $ encodeUtf8 $ T.pack term), ("srCategoryId1", Just "1613")]
-        $ setRequestHeaders [("User-Agent", "curl/8.14.1")]
-        $ request'
+  request <- buildRequest year term
   httpSink request $ const sinkDoc
+
+readLeadingDigits :: String -> Maybe Int
+readLeadingDigits xs =
+  case span isDigit xs of
+    ("", _) -> Nothing
+    (ds, _) -> Just (read ds)
+
+skipWeekday :: String -> String
+skipWeekday xs =
+  case dropWhile (/= ')') xs of
+    [] -> []
+    (_:ys) -> ys
+
+parseDateRange :: T.Text -> Maybe DataRange
+parseDateRange input = do
+  start <- readLeadingDigits raw
+  let rest = skipWeekday raw
+  case rest of
+    ('~':more) ->
+      fmap (Range start) (readLeadingDigits more)
+    _ ->
+      pure (Single start)
+  where
+    raw = T.unpack input
+
+parseMonth :: T.Text -> Maybe Int
+parseMonth input = readLeadingDigits (T.unpack (T.dropEnd 1 input))
+
+extractRow :: Cursor -> Maybe (T.Text, T.Text, T.Text)
+extractRow row = do
+  date <- listToMaybe $ row $// attributeIs "class" "des dateInfo" &/ content
+  title <- listToMaybe $ row $// attributeIs "class" "des" &// element "div" &/ content
+  let month = fromMaybe "" $ listToMaybe $ map strip $ row $// element "th" &// element "span" &/ content
+  pure (month, strip date, strip title)
 
 parseDocument :: Text.XML.Document -> [(Int, DataRange, T.Text)]
 parseDocument document =
@@ -43,50 +86,38 @@ parseDocument document =
     cursor = fromDocument document
 
     rows' = cursor $// element "table" &// element "tr"
-    rows = map (\row -> (
-            listToMaybe $ map strip $ row $// element "th" &// element "span" &/ content,
-            strip $ head $ row $// attributeIs "class" "des dateInfo" &/ content,
-            strip $ head $ row $// attributeIs "class" "des" &// element "div" &/ content
-          )) rows'
+    rows = mapMaybe extractRow rows'
 
     (_, withMonth) = mapAccumL step "" rows
           where
-            step acc (mMonth, date, title) = let
-                newMonth = fromMaybe acc mMonth
+            step acc (month, date, title) = let
+                newMonth = if T.null month then acc else month
               in (newMonth, (newMonth, date, title))
+    toEvent (month, date, title) = do
+      m <- parseMonth month
+      d <- parseDateRange date
+      pure (m, d, title)
   in
+  mapMaybe toEvent withMonth
 
-  map (\(month, date, title) -> (parseMonth month :: Int, parseDate $ T.unpack date, title)) withMonth
-        where
-          readNum xs =
-            let
-              (ds, rest) = span isDigit xs
-            in (read ds, rest)
-          skipWeekday xs =
-            case dropWhile (/= ')') xs of
-              [] -> []
-              (_:ys) -> ys
-          parseDate input =
-            let
-              (d1, _) = readNum input
-              rest2 = skipWeekday input
-            in case rest2 of
-              ('~':more) ->
-                let
-                  (d2, _) = readNum more
-                  _ = skipWeekday more
-                in Range d1 d2
-              _ -> Single d1
-          parseMonth input = read (T.unpack (T.dropEnd 1 input))
+makeDate :: Integer -> Int -> Int -> Date
+makeDate year month day = Date (fromGregorian year month day)
+
+eventTimeRange :: Integer -> Int -> DataRange -> (Maybe DTStart, Maybe Date)
+eventTimeRange year month dateRange =
+  case dateRange of
+    Single s -> (Just DTStartDate { dtStartDateValue = makeDate year month s, dtStartOther = def }, Nothing)
+    Range s e ->
+      ( Just (DTStartDate (makeDate year month s) def)
+      , Just (makeDate year month e)
+      )
 
 generateIcalEvents :: UTCTime -> Integer -> [(Int, DataRange, T.Text)] -> [((TL.LazyText, Maybe (Either Date DateTime)), VEvent)]
 generateIcalEvents now year = map (
         \(month, date, title) ->
           let
-            (start, end) =
-              case date of
-                Single s -> (Just DTStartDate { dtStartDateValue = Date (fromGregorian year month s), dtStartOther = def }, Nothing)
-                Range s e -> (Just (DTStartDate (Date (fromGregorian year month s)) def), Just (DTEndDate (Date (fromGregorian 2025 month e)) def))
+            (start, endDate) = eventTimeRange year month date
+            end = fmap (\d -> DTEndDate d def) endDate
           in ((TL.fromStrict title, Nothing), VEvent {
             veDTStamp = DTStamp now def,
             veUID = UID (TL.pack $ T.unpack title ++ "|" ++ show year ++ "|" ++ show month  ++ "|" ++ show date ++ "|ku-calendar-crawler@beleap.dev") def,
