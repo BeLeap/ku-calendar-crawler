@@ -71,6 +71,7 @@ executable example
         base ^>=4.19.2.0,
         text,
         bytestring,
+        http-client,
         http-conduit,
         html-conduit,
         xml-conduit,
