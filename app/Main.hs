@@ -112,15 +112,21 @@ eventTimeRange year month dateRange =
       , Just (makeDate year month e)
       )
 
-generateIcalEvents :: UTCTime -> Integer -> [(Int, DataRange, T.Text)] -> [((TL.LazyText, Maybe (Either Date DateTime)), VEvent)]
-generateIcalEvents now year = map (
+resolveEventYear :: Integer -> String -> Int -> Integer
+resolveEventYear year term month
+  | term == "2" && month `elem` [1, 2] = year + 1
+  | otherwise = year
+
+generateIcalEvents :: UTCTime -> Integer -> String -> [(Int, DataRange, T.Text)] -> [((TL.LazyText, Maybe (Either Date DateTime)), VEvent)]
+generateIcalEvents now year term = map (
         \(month, date, title) ->
           let
-            (start, endDate) = eventTimeRange year month date
+            eventYear = resolveEventYear year term month
+            (start, endDate) = eventTimeRange eventYear month date
             end = fmap (\d -> DTEndDate d def) endDate
           in ((TL.fromStrict title, Nothing), VEvent {
             veDTStamp = DTStamp now def,
-            veUID = UID (TL.pack $ T.unpack title ++ "|" ++ show year ++ "|" ++ show month  ++ "|" ++ show date ++ "|ku-calendar-crawler@beleap.dev") def,
+            veUID = UID (TL.pack $ T.unpack title ++ "|" ++ show eventYear ++ "|" ++ show month  ++ "|" ++ show date ++ "|ku-calendar-crawler@beleap.dev") def,
             veClass = Class Public def,
             veDTStart = start,
             veCreated = Nothing,
@@ -160,7 +166,7 @@ main = do
   let calInfos = map parseDocument documents
   let infos = zip (map (\(y, h, _) -> (y, h)) targets) calInfos
   now <- getCurrentTime
-  let events = concatMap (\((year, _), info) -> generateIcalEvents now (read year) info) infos
+  let events = concatMap (\((year, term), info) -> generateIcalEvents now (read year) term info) infos
 
   let vCal = VCalendar {
     vcProdId = ProdId (TL.pack "-//BeLeap//ku-calendar-crawler//EN") def,
